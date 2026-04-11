@@ -264,30 +264,26 @@ function resetFail(){failCount=0; showSkip(false);}
 function doSkip(){
   resetFail();
   if(phase==='player-turn' && greenIdx!==null){
-    // skip this guess — mark as miss, pass turn
+    // just abandon this cell — no hit, no miss recorded, turn passes
     const it=ITEMS[greenIdx];
-    playerG.set(it.id,'miss');
     setMark('greenMarks',greenIdx,'⏭','#aaa');
     setHl('greenSel',greenIdx,false);
     greenIdx=null;
     lg(`⏭ Skipped: <i>${aiStmt(it)}</i>`,'info');
     setBig('—','orange',false);
     st('⏭ Skipped! AI\'s turn…');
-    checkWin();
-    if(phase==='player-turn'){phase='ai-turn'; setTimeout(doAITurn,1400);}
+    phase='ai-turn'; setTimeout(doAITurn,1400);
   } else if(phase==='ai-turn' && aiItem){
-    // skip answering AI's statement
+    // skip answering — no hit recorded for AI, turn returns to player
     const it=aiItem;
     const idx=ITEMS.findIndex(x=>x.id===it.id);
-    aiG.set(it.id,'miss');
     setMark('redMarks',idx,'⏭','#aaa');
     lg(`⏭ Skipped answer: <i>${aiStmt(it)}</i>`,'info');
     aiItem=null;
     setHelpers(false,false);
+    phase='player-turn';
     setBig('🎤 Speak!','green',false);
     st('⏭ Skipped! Your turn — tap the green board.');
-    checkWin();
-    if(phase==='ai-turn'){phase='player-turn';}
   }
 }
 
@@ -438,34 +434,22 @@ function startRecognition(statusMsg, onResult, onFail){
 // For ai-turn answer: need "yes"+"there are/is" OR "no"+"there are/is not"
 //   AND the is/are form must match the item's grammar (ip)
 
-function verbOK_stmt(n, it){
-  // must use ARE for ip:true, IS for ip:false
-  if(it.ip) return n.includes('there are') && !onlyIs(n);
-  else      return n.includes('there is')  && !onlyAre(n);
-}
-function onlyIs(n) {return n.includes('there is') && !n.includes('there are');}
-function onlyAre(n){return n.includes('there are')&& !n.includes('there is');}
-
 function checkPlayerStmt(said, it){
   const n=norm(said);
-  const hasItem=n.includes(norm(it.plural))||n.includes(norm(it.sing));
-  const hasHouse=n.includes('your house')||n.includes('your home');
-  return verbOK_stmt(n,it) && hasItem && hasHouse;
+  // must have correct verb form matching the item's grammar
+  if(it.ip) return n.includes('there are');
+  else      return n.includes('there is');
 }
 
 function checkPlayerAnswer(said, it, hasIt){
   const n=norm(said);
-  const hasItem=n.includes(norm(it.plural))||n.includes(norm(it.sing));
-  // verb match: ARE for ip:true, IS for ip:false
-  const areForm = n.includes('there are') || n.includes('arent') || n.includes('are not');
-  const isForm  = n.includes('there is')  || n.includes('isnt')  || n.includes('is not');
+  const areForm = n.includes('there are');
+  const isForm  = n.includes('there is');
   const correctVerb = it.ip ? areForm : isForm;
-  // positive: contains "yes", no negation
-  const isPos = n.includes('yes') && !n.includes('not') && !n.includes("nt");
-  // negative: contains "no" or negation
-  const isNeg = n.includes('no') || n.includes('not') || n.includes("nt");
-  if(hasIt)  return correctVerb && hasItem && isPos;
-  else       return correctVerb && hasItem && isNeg;
+  const isPos = n.includes('yes') && !n.includes('not') && !n.includes("nt") && !n.includes("no ");
+  const isNeg = n.includes('no') || n.includes('not') || n.includes("nt") || n.includes("aren") || n.includes("isn");
+  if(hasIt)  return correctVerb && isPos;
+  else       return correctVerb && isNeg;
 }
 
 function processPlayerSpeech(tr,it,idx){
