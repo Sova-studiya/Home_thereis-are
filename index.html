@@ -10,31 +10,24 @@ html,body{height:100%;overflow-x:hidden}
 body{font-family:'Segoe UI',Arial,sans-serif;background:#1a1a2e;color:#fff;
   display:flex;flex-direction:column;align-items:center;padding:6px 6px 14px;gap:5px}
 h1{font-size:clamp(13px,4vw,20px);color:#ffd700;text-align:center;margin-top:2px;line-height:1.2}
-
 #status-box{background:#2d2d44;border-radius:12px;padding:8px 12px;
   width:100%;max-width:820px;text-align:center;
   font-size:clamp(12px,3.5vw,16px);line-height:1.5;min-height:48px}
-
 #boards{display:flex;gap:4px;width:100%;max-width:820px}
 .board-wrap{flex:1;min-width:0}
-.board-title{text-align:center;font-weight:bold;
-  font-size:clamp(9px,2.8vw,14px);
+.board-title{text-align:center;font-weight:bold;font-size:clamp(9px,2.8vw,14px);
   margin-bottom:2px;padding:4px 2px;border-radius:7px;line-height:1.2}
 .red-title{background:#c0392b}
 .green-title{background:#27ae60}
 .board-img-wrap{position:relative;width:100%;touch-action:manipulation}
 .board-img-wrap img.bg{width:100%;height:auto;display:block;border-radius:6px;border:2px solid #555}
-
-.marks-layer,.sel-layer,.click-layer{
-  position:absolute;top:0;left:0;width:100%;height:100%;
-  display:grid;
-  grid-template-columns:repeat(5,1fr);
-  grid-template-rows:repeat(6,1fr)}
+.marks-layer,.sel-layer,.click-layer{position:absolute;top:0;left:0;width:100%;height:100%;
+  display:grid;grid-template-columns:repeat(5,1fr);grid-template-rows:repeat(6,1fr)}
 .marks-layer,.sel-layer{pointer-events:none}
 .mark-cell{display:flex;align-items:center;justify-content:center}
 .sel-cell{border:2px solid transparent;border-radius:3px;transition:background .1s}
 .sel-cell.active{background:rgba(255,215,0,.35);border-color:#ffd700}
-.click-cell{cursor:pointer;min-width:0;min-height:0}
+.click-cell{cursor:pointer}
 .click-cell:active{background:rgba(255,255,255,.18)}
 .mark{font-size:clamp(16px,4.5vw,30px);line-height:1;filter:drop-shadow(0 0 2px #000)}
 .sel-dot-wrap{display:flex;align-items:center;justify-content:center;width:100%;height:100%}
@@ -52,14 +45,15 @@ h1{font-size:clamp(13px,4vw,20px);color:#ffd700;text-align:center;margin-top:2px
 @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.06)}}
 .listening{animation:pulse .55s infinite}
 
-#helperRow{display:flex;gap:8px;width:100%;max-width:820px;justify-content:center}
-.hbtn{flex:1;font-size:clamp(12px,3.5vw,15px);padding:10px 8px;border:none;
+#helperRow{display:flex;gap:6px;width:100%;max-width:820px;justify-content:center;flex-wrap:wrap}
+.hbtn{flex:1;min-width:70px;font-size:clamp(11px,3vw,14px);padding:10px 6px;border:none;
   border-radius:30px;cursor:pointer;font-weight:bold;min-height:44px}
 .hbtn:disabled{opacity:.3;cursor:not-allowed}
 .hbtn:active{opacity:.7}
 .repeat{background:#2980b9;color:#fff}
 .slow{background:#8e44ad;color:#fff}
 .help{background:#f39c12;color:#fff}
+.skip{background:#e74c3c;color:#fff}
 
 #log{background:#2d2d44;border-radius:10px;padding:7px 10px;
   width:100%;max-width:820px;max-height:120px;overflow-y:auto;
@@ -67,7 +61,6 @@ h1{font-size:clamp(13px,4vw,20px);color:#ffd700;text-align:center;margin-top:2px
 #log p{border-bottom:1px solid #3d3d54;padding:2px 0}
 .err{color:#ff6b6b}.cor{color:#7bed9f}.ai-c{color:#74b9ff}.info{color:#ffeaa7}
 
-/* MODAL */
 #modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.72);
   z-index:100;align-items:center;justify-content:center;padding:16px}
 #modal.open{display:flex}
@@ -80,7 +73,6 @@ h1{font-size:clamp(13px,4vw,20px);color:#ffd700;text-align:center;margin-top:2px
 </style>
 </head>
 <body>
-
 <h1>🏠 House Vocabulary Game</h1>
 <div id="status-box">Press <b>▶ Start Game</b> to play!</div>
 
@@ -110,12 +102,12 @@ h1{font-size:clamp(13px,4vw,20px);color:#ffd700;text-align:center;margin-top:2px
 <div id="helperRow">
   <button class="hbtn repeat" id="btnRepeat" onclick="repeatAI()" disabled>🔁 Repeat</button>
   <button class="hbtn slow"   id="btnSlow"   onclick="slowAI()"   disabled>🐢 Slower</button>
+  <button class="hbtn skip"   id="btnSkip"   onclick="doSkip()"   style="display:none">⏭ Skip</button>
   <button class="hbtn help"   onclick="openHelp()">❓ Help</button>
 </div>
 
 <div id="log"><p class="info">Game log will appear here…</p></div>
 
-<!-- MODAL -->
 <div id="modal" onclick="modalBgClick(event)">
   <div id="modal-inner">
     <button id="modal-close" onclick="closeHelp()">✕</button>
@@ -125,97 +117,203 @@ h1{font-size:clamp(13px,4vw,20px);color:#ffd700;text-align:center;margin-top:2px
 </div>
 
 <script>
-// ── ITEMS  5×6 = 30, row-major order ────────────────────────────────────────
-// ip:true  → inherently plural (always "there are …")
-// ip:false → countable singular ("there is a/an …")
-// art      → 'an' if needed, default 'a'
+// ─────────────────────────────────────────────────────────────────────────────
+// ITEMS — 5×6 = 30 cells, row-major, matching both board images
+//
+//  ip:true  → inherently plural noun shown on picture
+//             AI says "There ARE …"   player answers "Yes/No, there ARE/ARE NOT …"
+//  ip:false → single countable noun shown on picture
+//             AI says "There IS a/an …"  player answers "Yes/No, there IS/IS NOT a/an …"
+//  art      → 'an' when sing starts with a vowel sound, otherwise defaults to 'a'
+// ─────────────────────────────────────────────────────────────────────────────
 const ITEMS=[
-  // row 1
-  {id:'mats',       plural:'mats',            sing:'mat',            ip:true},
-  {id:'washing',    plural:'washing machines',sing:'washing machine',ip:false},
-  {id:'clock',      plural:'clocks',          sing:'clock',          ip:false},
-  {id:'armchair',   plural:'armchairs',       sing:'armchair',       ip:false, art:'an'},
-  {id:'desk',       plural:'desks',           sing:'desk',           ip:false},
-  // row 2
-  {id:'fridge',     plural:'fridges',         sing:'fridge',         ip:false},
-  {id:'dishwasher', plural:'dishwashers',     sing:'dishwasher',     ip:false},
-  {id:'lamps',      plural:'lamps',           sing:'lamp',           ip:true},
-  {id:'tap',        plural:'taps',            sing:'tap',            ip:false},
-  {id:'mirror',     plural:'mirrors',         sing:'mirror',         ip:false},
-  // row 3
-  {id:'window',     plural:'windows',         sing:'window',         ip:false},
-  {id:'door',       plural:'doors',           sing:'door',           ip:false},
-  {id:'cupboard',   plural:'cupboards',       sing:'cupboard',       ip:false},
-  {id:'curtains',   plural:'curtains',        sing:'curtain',        ip:true},
-  {id:'tv',         plural:'TVs',             sing:'TV',             ip:false},
-  // row 4
-  {id:'table',      plural:'tables',          sing:'table',          ip:false},
-  {id:'sink',       plural:'sinks',           sing:'sink',           ip:false},
-  {id:'posters',    plural:'posters',         sing:'poster',         ip:true},
-  {id:'shower',     plural:'showers',         sing:'shower',         ip:false},
-  {id:'plants',     plural:'plants',          sing:'plant',          ip:true},
-  // row 5
-  {id:'wardrobe',   plural:'wardrobes',       sing:'wardrobe',       ip:false},
-  {id:'bed',        plural:'beds',            sing:'bed',            ip:false},
-  {id:'sofa',       plural:'sofas',           sing:'sofa',           ip:false},
-  {id:'bath',       plural:'baths',           sing:'bath',           ip:false},
-  {id:'cooker',     plural:'cookers',         sing:'cooker',         ip:false},
-  // row 6
-  {id:'chairs',     plural:'chairs',          sing:'chair',          ip:true},   // 2 chairs on picture → plural
-  {id:'computer',   plural:'computers',       sing:'computer',       ip:false},
-  {id:'iron',       plural:'irons',           sing:'iron',           ip:false, art:'an'},
-  {id:'pillows',    plural:'pillows',         sing:'pillow',         ip:true},
-  {id:'books',      plural:'books',           sing:'book',           ip:true},
+  // row 1 ── mats(2), washing machine(1), clock(1), armchair(1), desk(1)
+  {id:'mats',       plural:'mats',            sing:'mat',             ip:true},
+  {id:'washing',    plural:'washing machines',sing:'washing machine', ip:false},
+  {id:'clock',      plural:'clocks',          sing:'clock',           ip:false},
+  {id:'armchair',   plural:'armchairs',       sing:'armchair',        ip:false, art:'an'},
+  {id:'desk',       plural:'desks',           sing:'desk',            ip:false},
+  // row 2 ── fridge(1), dishwasher(1), lamps(3), tap(1), mirror(1)
+  {id:'fridge',     plural:'fridges',         sing:'fridge',          ip:false},
+  {id:'dishwasher', plural:'dishwashers',     sing:'dishwasher',      ip:false},
+  {id:'lamps',      plural:'lamps',           sing:'lamp',            ip:true},
+  {id:'tap',        plural:'taps',            sing:'tap',             ip:false},
+  {id:'mirror',     plural:'mirrors',         sing:'mirror',          ip:false},
+  // row 3 ── window(1), door(1), cupboard(1), curtains(pair→plural), tv(1)
+  {id:'window',     plural:'windows',         sing:'window',          ip:false},
+  {id:'door',       plural:'doors',           sing:'door',            ip:false},
+  {id:'cupboard',   plural:'cupboards',       sing:'cupboard',        ip:false},
+  {id:'curtains',   plural:'curtains',        sing:'curtain',         ip:true},
+  {id:'tv',         plural:'TVs',             sing:'TV',              ip:false},
+  // row 4 ── table(1), sink(1), posters(2+), shower(1), plants(2)
+  {id:'table',      plural:'tables',          sing:'table',           ip:false},
+  {id:'sink',       plural:'sinks',           sing:'sink',            ip:false},
+  {id:'posters',    plural:'posters',         sing:'poster',          ip:true},
+  {id:'shower',     plural:'showers',         sing:'shower',          ip:false},
+  {id:'plants',     plural:'plants',          sing:'plant',           ip:true},
+  // row 5 ── wardrobe(1), bed(1), sofa(1), bath(1), cooker(1)
+  {id:'wardrobe',   plural:'wardrobes',       sing:'wardrobe',        ip:false},
+  {id:'bed',        plural:'beds',            sing:'bed',             ip:false},
+  {id:'sofa',       plural:'sofas',           sing:'sofa',            ip:false},
+  {id:'bath',       plural:'baths',           sing:'bath',            ip:false},
+  {id:'cooker',     plural:'cookers',         sing:'cooker',          ip:false},
+  // row 6 ── chairs(2), computer(1), iron(1), pillows(2+), books(stack→plural)
+  {id:'chairs',     plural:'chairs',          sing:'chair',           ip:true},
+  {id:'computer',   plural:'computers',       sing:'computer',        ip:false},
+  {id:'iron',       plural:'irons',           sing:'iron',            ip:false, art:'an'},
+  {id:'pillows',    plural:'pillows',         sing:'pillow',          ip:true},
+  {id:'books',      plural:'books',           sing:'book',            ip:true},
 ];
 
-// ── SENTENCE BUILDERS ───────────────────────────────────────────────────────
-function a(it){return it.art||'a';}
-function aiStmt(it){return it.ip?`There are ${it.plural} in your house.`:`There is ${a(it)} ${it.sing} in your house.`;}
-function cYes(it) {return it.ip?`Yes, there are ${it.plural} in my house.`:`Yes, there is ${a(it)} ${it.sing} in my house.`;}
-function cNo(it)  {return it.ip?`No, there are not ${it.plural} in my house.`:`No, there is not ${a(it)} ${it.sing} in my house.`;}
+// ─── article helper ──────────────────────────────────────────────────────────
+function art(it){return it.art||'a';}
 
-// ── STATE ────────────────────────────────────────────────────────────────────
+// ─── sentence builders ───────────────────────────────────────────────────────
+// AI statement (about PLAYER's house)
+function aiStmt(it){
+  return it.ip
+    ? `There are ${it.plural} in your house.`
+    : `There is ${art(it)} ${it.sing} in your house.`;
+}
+// Player's correct YES answer (about MY house)
+function cYes(it){
+  return it.ip
+    ? `Yes, there are ${it.plural} in my house.`
+    : `Yes, there is ${art(it)} ${it.sing} in my house.`;
+}
+// Player's correct NO answer
+function cNo(it){
+  return it.ip
+    ? `No, there are not ${it.plural} in my house.`
+    : `No, there is not ${art(it)} ${it.sing} in my house.`;
+}
+// AI response after player's PLAYER-TURN guess
+function aiHitReply(it){
+  return it.ip
+    ? `Yes, there are ${it.plural} in my house!`
+    : `Yes, there is ${art(it)} ${it.sing} in my house!`;
+}
+function aiMissReply(it){
+  return it.ip
+    ? `No, there are not ${it.plural} in my house.`
+    : `No, there is not ${art(it)} ${it.sing} in my house.`;
+}
+
+// ─── state ───────────────────────────────────────────────────────────────────
 let phase='idle';
 let playerSel=new Set(), aiSel=new Set();
 let playerG=new Map(),   aiG=new Map();
 let greenIdx=null, aiItem=null, aiLastText='', rec=null;
+let failCount=0; // consecutive failed speech attempts on current action
 
-// ── UTILS ────────────────────────────────────────────────────────────────────
+// ─── utils ───────────────────────────────────────────────────────────────────
 const rnd=arr=>arr[Math.floor(Math.random()*arr.length)];
-function shuffle(arr){let b=[...arr];for(let i=b.length-1;i>0;i--){let j=Math.floor(Math.random()*(i+1));[b[i],b[j]]=[b[j],b[i]];}return b;}
-function lg(msg,c=''){const d=document.getElementById('log');const p=document.createElement('p');p.className=c;p.innerHTML=msg;d.prepend(p);}
+function shuffle(arr){
+  let b=[...arr];
+  for(let i=b.length-1;i>0;i--){let j=Math.floor(Math.random()*(i+1));[b[i],b[j]]=[b[j],b[i]];}
+  return b;
+}
+function lg(msg,c=''){
+  const d=document.getElementById('log');
+  const p=document.createElement('p');p.className=c;p.innerHTML=msg;d.prepend(p);
+}
 function st(msg){document.getElementById('status-box').innerHTML=msg;}
 function norm(s){return s.toLowerCase().replace(/[^a-z\s]/g,'').replace(/\s+/,' ').trim();}
 
-// speak with a small pre-delay so cancel() fully flushes
-function speak(text,rate=1){
-  if(!('speechSynthesis' in window))return;
-  speechSynthesis.cancel();
-  setTimeout(()=>{
+// ─── speak: queue-safe, no cancellation race ─────────────────────────────────
+// We wait for any current speech to finish, then speak.
+// If nothing is speaking we add a tiny delay for mobile reliability.
+function speak(text, rate=1, onEnd){
+  if(!('speechSynthesis' in window)) return;
+  const go=()=>{
     const u=new SpeechSynthesisUtterance(text);
     u.lang='en-US'; u.rate=rate; u.volume=1;
+    if(onEnd) u.onend=onEnd;
     speechSynthesis.speak(u);
-  },150);
+  };
+  if(speechSynthesis.speaking){
+    speechSynthesis.cancel();
+    setTimeout(go, 250);
+  } else {
+    setTimeout(go, 80);
+  }
 }
 
+// ─── buttons ─────────────────────────────────────────────────────────────────
 function setBig(label,cls,on){
   const b=document.getElementById('bigBtn');
   b.textContent=label; b.className=cls; b.disabled=!on;
 }
-function setHelpers(on){
-  document.getElementById('btnRepeat').disabled=!on;
-  document.getElementById('btnSlow').disabled=!on;
+function setHelpers(repeat, slow){
+  document.getElementById('btnRepeat').disabled=!repeat;
+  document.getElementById('btnSlow').disabled=!slow;
+}
+function showSkip(show){
+  document.getElementById('btnSkip').style.display=show?'':'none';
 }
 function repeatAI(){speak(aiLastText,1);}
 function slowAI()  {speak(aiLastText,0.6);}
 
-// ── HELP MODAL ───────────────────────────────────────────────────────────────
+function incFail(){
+  failCount++;
+  if(failCount>=4) showSkip(true);
+}
+function resetFail(){failCount=0; showSkip(false);}
+
+// ─── skip button ─────────────────────────────────────────────────────────────
+function doSkip(){
+  resetFail();
+  if(phase==='player-turn' && greenIdx!==null){
+    // skip this guess — mark as miss, pass turn
+    const it=ITEMS[greenIdx];
+    playerG.set(it.id,'miss');
+    setMark('greenMarks',greenIdx,'⏭','#aaa');
+    setHl('greenSel',greenIdx,false);
+    greenIdx=null;
+    lg(`⏭ Skipped: <i>${aiStmt(it)}</i>`,'info');
+    setBig('—','orange',false);
+    st('⏭ Skipped! AI\'s turn…');
+    checkWin();
+    if(phase==='player-turn'){phase='ai-turn'; setTimeout(doAITurn,1400);}
+  } else if(phase==='ai-turn' && aiItem){
+    // skip answering AI's statement
+    const it=aiItem;
+    const idx=ITEMS.findIndex(x=>x.id===it.id);
+    aiG.set(it.id,'miss');
+    setMark('redMarks',idx,'⏭','#aaa');
+    lg(`⏭ Skipped answer: <i>${aiStmt(it)}</i>`,'info');
+    aiItem=null;
+    setHelpers(false,false);
+    setBig('🎤 Speak!','green',false);
+    st('⏭ Skipped! Your turn — tap the green board.');
+    checkWin();
+    if(phase==='ai-turn'){phase='player-turn';}
+  }
+}
+
+// ─── help modal ──────────────────────────────────────────────────────────────
 const HELP_TEXT={
-  idle:        `<b>Press ▶ Start Game</b> to begin!`,
-  setup:       `<b>Step 1 — Choose YOUR items</b><br>Tap <b>10 pictures</b> on the 🔴 red board.<br>These are the things in your house.<br>A yellow dot will mark each chosen item.`,
-  'player-turn':`<b>Step 2 — Guess the AI's items</b><br>1️⃣ Tap a picture on the 🟢 green board.<br>2️⃣ Press 🎤 Speak.<br>3️⃣ Say the sentence shown on screen, for example:<br><i>"There are curtains in your house."</i><br><i>"There is a clock in your house."</i><br><br>✅ Correct guess → you keep your turn!<br>❌ Wrong guess → AI takes a turn.`,
-  'ai-turn':   `<b>Step 3 — Answer the AI</b><br>The AI says a sentence about your house.<br>Press 🎤 Speak and answer in full:<br><br>✅ If you HAVE it:<br><i>"Yes, there are … in my house."</i><br><i>"Yes, there is a … in my house."</i><br><br>❌ If you DON'T have it:<br><i>"No, there are not … in my house."</i><br><i>"No, there is not a … in my house."</i><br><br>🔁 Repeat / 🐢 Slower — to hear the AI again.`,
-  done:        `The game is over!<br>Press <b>▶ Play Again</b> for a new round.`
+  idle:         `<b>Press ▶ Start Game</b> to begin!`,
+  setup:        `<b>Step 1 — Choose YOUR items</b><br>Tap <b>10 pictures</b> on the 🔴 red board.<br>These are the things in your house.<br>A yellow dot marks each chosen item.`,
+  'player-turn':`<b>Step 2 — Guess the AI's items</b><br>
+1️⃣ Tap a picture on the 🟢 green board.<br>
+2️⃣ Press 🎤 Speak.<br>
+3️⃣ Say the sentence shown, for example:<br>
+<i>"There are curtains in your house."</i><br>
+<i>"There is a clock in your house."</i><br><br>
+✅ Correct guess → you keep your turn!<br>
+❌ Wrong guess → AI takes a turn.<br><br>
+After 4 failed attempts the ⏭ Skip button appears.`,
+  'ai-turn':    `<b>Step 3 — Answer the AI</b><br>
+The AI says a sentence about your house.<br>
+Press 🎤 Speak and answer:<br><br>
+✅ <i>"Yes, there are … in my house."</i><br>
+✅ <i>"Yes, there is a … in my house."</i><br>
+❌ <i>"No, there are not … in my house."</i><br>
+❌ <i>"No, there is not a … in my house."</i><br><br>
+🔁 Repeat / 🐢 Slower — hear AI again.<br>
+After 4 failed attempts the ⏭ Skip button appears.`,
+  done:         `Game over! Press <b>▶ Play Again</b> for a new round.`
 };
 function openHelp(){
   document.getElementById('modal-text').innerHTML=HELP_TEXT[phase]||HELP_TEXT.idle;
@@ -224,7 +322,7 @@ function openHelp(){
 function closeHelp(){document.getElementById('modal').classList.remove('open');}
 function modalBgClick(e){if(e.target===document.getElementById('modal'))closeHelp();}
 
-// ── GRID LAYERS ──────────────────────────────────────────────────────────────
+// ─── grid layers ─────────────────────────────────────────────────────────────
 function buildLayers(sId,mId,cId,fn){
   [sId,mId,cId].forEach(id=>document.getElementById(id).innerHTML='');
   ITEMS.forEach((_,i)=>{
@@ -250,20 +348,20 @@ function setMark(mId,i,sym,col){
   if(el)el.innerHTML=`<span class="mark" style="color:${col}">${sym}</span>`;
 }
 
-// ── MAIN BUTTON ROUTER ───────────────────────────────────────────────────────
+// ─── main button ─────────────────────────────────────────────────────────────
 function bigBtnClick(){
   if(phase==='idle'||phase==='done') startGame();
   else if(phase==='player-turn')     startSpeech();
   else if(phase==='ai-turn')         startAnswerSpeech();
 }
 
-// ── GAME START ───────────────────────────────────────────────────────────────
+// ─── start ────────────────────────────────────────────────────────────────────
 function startGame(){
   phase='setup';
   playerSel.clear(); aiSel.clear(); playerG.clear(); aiG.clear();
   greenIdx=null; aiItem=null;
   document.getElementById('log').innerHTML='';
-  setHelpers(false);
+  setHelpers(false,false); showSkip(false); resetFail();
   buildLayers('redSel','redMarks','redClick',onRed);
   buildLayers('greenSel','greenMarks','greenClick',onGreen);
   shuffle(ITEMS).slice(0,10).forEach(it=>aiSel.add(it.id));
@@ -271,7 +369,7 @@ function startGame(){
   setBig('— tap items on the red board —','orange',false);
 }
 
-// ── SETUP ────────────────────────────────────────────────────────────────────
+// ─── setup ────────────────────────────────────────────────────────────────────
 function onRed(i){
   if(phase!=='setup')return;
   const it=ITEMS[i];
@@ -283,152 +381,181 @@ function onRed(i){
   const n=playerSel.size;
   if(n<10) st(`🔴 Tap <b>10 items</b> in YOUR house &nbsp;<b>(${n} / 10)</b>`);
   else{
-    st('✅ Done! Now tap a picture on the <b>green board</b> to start guessing!');
+    st('✅ Done! Tap a picture on the <b>green board</b> to start guessing!');
     phase='player-turn';
     setBig('🎤 Speak!','green',false);
     lg('Your turn! Tap a cell on the green board, then press 🎤 Speak.','info');
   }
 }
 
-// ── PLAYER TURN ──────────────────────────────────────────────────────────────
+// ─── player turn ─────────────────────────────────────────────────────────────
 function onGreen(i){
   if(phase!=='player-turn')return;
   if(playerG.has(ITEMS[i].id))return;
   if(greenIdx!==null)setHl('greenSel',greenIdx,false);
   greenIdx=i; setHl('greenSel',i,true);
   const it=ITEMS[i];
-  const sent=aiStmt(it).replace('your house','your house'); // same structure
-  st(`🟡 <b>${it.ip?it.plural:a(it)+' '+it.sing}</b> — press 🎤 Speak and say:<br><i>"${sent}"</i>`);
+  resetFail();
+  st(`🟡 <b>${it.ip?it.plural:art(it)+' '+it.sing}</b> — press 🎤 Speak and say:<br><i>"${aiStmt(it)}"</i>`);
   setBig('🎤 Speak!','green',true);
 }
 
 function startSpeech(){
   if(greenIdx===null){st('👆 Tap a picture on the <b>green board</b> first!');return;}
-  if(!hasSR()){return;}
+  if(!hasSR()) return;
   const it=ITEMS[greenIdx];
+  startRecognition(
+    `🎤 <b>Listening…</b> Say:<br><i>"${aiStmt(it)}"</i>`,
+    tr=>processPlayerSpeech(tr,it,greenIdx),
+    ()=>setBig('🎤 Speak!','green',true)
+  );
+}
+
+// ─── speech recognition wrapper ─────────────────────────────────────────────
+function startRecognition(statusMsg, onResult, onFail){
   const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-  rec=new SR();rec.lang='en-US';rec.interimResults=false;rec.maxAlternatives=3;
+  rec=new SR(); rec.lang='en-US'; rec.interimResults=false; rec.maxAlternatives=5;
   setBig('🎤 Listening…','red',false);
   document.getElementById('bigBtn').classList.add('listening');
-  st(`🎤 <b>Listening…</b> Say:<br><i>"${aiStmt(it)}"</i>`);
+  st(statusMsg);
   rec.start();
   const autoStop=setTimeout(()=>{try{rec.stop();}catch(e){}},9000);
   rec.onresult=e=>{
     clearTimeout(autoStop);
     document.getElementById('bigBtn').classList.remove('listening');
-    processPlayerSpeech(Array.from(e.results[0]).map(r=>r.transcript.trim().toLowerCase()),it,greenIdx);
+    onResult(Array.from(e.results[0]).map(r=>r.transcript.trim().toLowerCase()));
   };
   rec.onerror=()=>{
     clearTimeout(autoStop);
     document.getElementById('bigBtn').classList.remove('listening');
-    setBig('🎤 Speak!','green',true);
+    onFail();
     st('❌ Could not hear. Try again!');
   };
 }
 
-function checkQ(said,it){
+// ─── KEY CHECK: only validate the verb to be (is/are/isn't/aren't) + direction ─
+// For player-turn: need "there are/is" + item words + "your house"
+// For ai-turn answer: need "yes"+"there are/is" OR "no"+"there are/is not"
+//   AND the is/are form must match the item's grammar (ip)
+
+function verbOK_stmt(n, it){
+  // must use ARE for ip:true, IS for ip:false
+  if(it.ip) return n.includes('there are') && !onlyIs(n);
+  else      return n.includes('there is')  && !onlyAre(n);
+}
+function onlyIs(n) {return n.includes('there is') && !n.includes('there are');}
+function onlyAre(n){return n.includes('there are')&& !n.includes('there is');}
+
+function checkPlayerStmt(said, it){
   const n=norm(said);
   const hasItem=n.includes(norm(it.plural))||n.includes(norm(it.sing));
   const hasHouse=n.includes('your house')||n.includes('your home');
-  const hasThere=n.includes('there are')||n.includes('there is');
-  return hasThere&&hasItem&&hasHouse;
+  return verbOK_stmt(n,it) && hasItem && hasHouse;
+}
+
+function checkPlayerAnswer(said, it, hasIt){
+  const n=norm(said);
+  const hasItem=n.includes(norm(it.plural))||n.includes(norm(it.sing));
+  // verb match: ARE for ip:true, IS for ip:false
+  const areForm = n.includes('there are') || n.includes('arent') || n.includes('are not');
+  const isForm  = n.includes('there is')  || n.includes('isnt')  || n.includes('is not');
+  const correctVerb = it.ip ? areForm : isForm;
+  // positive: contains "yes", no negation
+  const isPos = n.includes('yes') && !n.includes('not') && !n.includes("nt");
+  // negative: contains "no" or negation
+  const isNeg = n.includes('no') || n.includes('not') || n.includes("nt");
+  if(hasIt)  return correctVerb && hasItem && isPos;
+  else       return correctVerb && hasItem && isNeg;
 }
 
 function processPlayerSpeech(tr,it,idx){
-  let ok=false,best=tr[0];
-  for(const t of tr){if(checkQ(t,it)){ok=true;best=t;break;}}
+  let ok=false, best=tr[0];
+  for(const t of tr){if(checkPlayerStmt(t,it)){ok=true;best=t;break;}}
   if(!ok){
     lg(`❌ You said: "<i>${best}</i>"<br>✅ Correct: <b>${aiStmt(it)}</b>`,'err');
     st(`❌ Not quite! Check the log.<br>Try again → press 🎤 Speak`);
-    setBig('🎤 Speak!','green',true); return;
+    setBig('🎤 Speak!','green',true);
+    incFail(); return;
   }
+  resetFail();
   lg(`🗣 You: <i>${best}</i>`);
   setHl('greenSel',idx,false); greenIdx=null; setBig('—','orange',false);
+
   const hit=aiSel.has(it.id);
   if(hit){
     playerG.set(it.id,'hit'); setMark('greenMarks',idx,'✅','#27ae60');
-    const r=cYes(it).replace('my house','my house');
-    lg(`🤖 AI: <i>${r}</i>`,'ai-c'); speak(r);
+    const reply=aiHitReply(it);
+    lg(`🤖 AI: <i>${reply}</i>`,'ai-c');
+    speak(reply);
     st(`✅ <b>Hit!</b> Tap another picture on the green board.`);
     checkWin();
   } else {
     playerG.set(it.id,'miss'); setMark('greenMarks',idx,'❌','#e74c3c');
-    const r=cNo(it);
-    lg(`🤖 AI: <i>${r}</i>`,'ai-c'); speak(r);
+    const reply=aiMissReply(it);
+    lg(`🤖 AI: <i>${reply}</i>`,'ai-c');
+    speak(reply,1,()=>{});
     st(`❌ <b>Miss!</b> AI's turn…`);
     checkWin();
-    if(phase==='player-turn'){phase='ai-turn';setTimeout(doAITurn,2400);}
+    if(phase==='player-turn'){phase='ai-turn'; setTimeout(doAITurn,2600);}
   }
 }
 
-// ── AI TURN ──────────────────────────────────────────────────────────────────
+// ─── AI turn ─────────────────────────────────────────────────────────────────
 function doAITurn(){
   if(phase!=='ai-turn')return;
-  const ung=ITEMS.filter(it=>!aiG.has(it.id));if(!ung.length)return;
+  const ung=ITEMS.filter(it=>!aiG.has(it.id));
+  if(!ung.length)return;
   const it=rnd(ung); aiItem=it;
   const stmt=aiStmt(it); aiLastText=stmt;
   lg(`🤖 AI says: <i>${stmt}</i>`,'ai-c');
   st(`🤖 AI: <b>"${stmt}"</b><br>Press 🎤 Speak to answer:<br>✅ <i>${cYes(it)}</i><br>❌ <i>${cNo(it)}</i>`);
-  speak(stmt);
-  setHelpers(true);
-  setBig('🎤 Speak your answer!','green',true);
+  setHelpers(true,true); resetFail();
+  setBig('🎤 Speak your answer!','green',false);
+  // speak fully before enabling button
+  speak(stmt,1,()=>{
+    if(phase==='ai-turn') setBig('🎤 Speak your answer!','green',true);
+  });
 }
 
 function startAnswerSpeech(){
   if(!aiItem)return;
-  if(!hasSR()){return;}
+  if(!hasSR()) return;
   const it=aiItem;
-  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-  rec=new SR();rec.lang='en-US';rec.interimResults=false;rec.maxAlternatives=3;
-  setBig('🎤 Listening…','red',false);
-  document.getElementById('bigBtn').classList.add('listening');
-  st('🎤 <b>Listening…</b>');
-  rec.start();
-  const autoStop=setTimeout(()=>{try{rec.stop();}catch(e){}},9000);
-  rec.onresult=e=>{
-    clearTimeout(autoStop);
-    document.getElementById('bigBtn').classList.remove('listening');
-    processAnswer(Array.from(e.results[0]).map(r=>r.transcript.trim().toLowerCase()),it);
-  };
-  rec.onerror=()=>{
-    clearTimeout(autoStop);
-    document.getElementById('bigBtn').classList.remove('listening');
-    setBig('🎤 Speak your answer!','green',true);
-    st('❌ Could not hear. Try again!');
-  };
+  startRecognition(
+    '🎤 <b>Listening…</b>',
+    tr=>processAnswer(tr,it),
+    ()=>setBig('🎤 Speak your answer!','green',true)
+  );
 }
 
 function processAnswer(tr,it){
-  const hasIt=playerSel.has(it.id);
-  const exp=hasIt?cYes(it):cNo(it);
-  let ok=false,best=tr[0];
+  let ok=false, best=tr[0];
   for(const t of tr){
-    const n=norm(t);
-    const hasItem=n.includes(norm(it.plural))||n.includes(norm(it.sing));
-    const hasThere=n.includes('there are')||n.includes('there is');
-    if(hasIt){
-      if(n.includes('yes')&&hasThere&&hasItem&&!n.includes('not')&&!n.includes('nt')){ok=true;best=t;break;}
-    } else {
-      if(n.includes('no')&&hasThere&&(n.includes('not')||n.includes('nt'))&&hasItem){ok=true;best=t;break;}
-    }
+    if(checkPlayerAnswer(t,it,playerSel.has(it.id))){ok=true;best=t;break;}
   }
+  const exp=playerSel.has(it.id)?cYes(it):cNo(it);
   if(!ok){
     lg(`❌ You said: "<i>${tr[0]}</i>"<br>✅ Correct: <b>${exp}</b>`,'err');
     st(`❌ Not quite! Check the log.<br>Try again → press 🎤 Speak`);
-    setBig('🎤 Speak your answer!','green',true); return;
+    setBig('🎤 Speak your answer!','green',true);
+    incFail(); return;
   }
+  resetFail();
   lg(`🗣 You: <i>${best}</i>`);
   const idx=ITEMS.findIndex(x=>x.id===it.id);
-  setHelpers(false); aiItem=null;
-  if(hasIt){
+  setHelpers(false,false); aiItem=null;
+
+  if(playerSel.has(it.id)){
     aiG.set(it.id,'hit'); setMark('redMarks',idx,'✅','#27ae60');
-    lg(`🤖 AI: Got it! 😏`,'ai-c'); speak('Got it!');
+    lg(`🤖 AI: Got it! 😏`,'ai-c');
+    speak('Got it!',1,()=>{});
     st('AI guessed right! It keeps going…');
     checkWin();
-    if(phase==='ai-turn')setTimeout(doAITurn,1800);
+    if(phase==='ai-turn') setTimeout(doAITurn,1800);
   } else {
     aiG.set(it.id,'miss'); setMark('redMarks',idx,'❌','#e74c3c');
-    lg(`🤖 AI: Oh no! 😅`,'ai-c'); speak('Oh no!');
+    lg(`🤖 AI: Oh no! 😅`,'ai-c');
+    speak('Oh no!',1,()=>{});
     st('AI missed! 🎉 Your turn — tap a picture on the <b>green board</b>.');
     checkWin();
     if(phase==='ai-turn'){
@@ -438,7 +565,7 @@ function processAnswer(tr,it){
   }
 }
 
-// ── WIN CHECK ─────────────────────────────────────────────────────────────────
+// ─── win ─────────────────────────────────────────────────────────────────────
 function checkWin(){
   const ph=[...playerG].filter(([,v])=>v==='hit').length;
   const ah=[...aiG].filter(([,v])=>v==='hit').length;
@@ -447,20 +574,19 @@ function checkWin(){
     st('🏆 <b>YOU WIN!</b> Amazing! You found all 10 items! 🎉');
     lg('🏆 PLAYER WINS!','cor');
     speak('Congratulations! You win! Amazing job!');
-    setBig('▶ Play Again','orange',true); setHelpers(false);
+    setBig('▶ Play Again','orange',true); setHelpers(false,false); showSkip(false);
   } else if(ah>=10){
     phase='done';
     st('🤖 <b>AI wins this time!</b> Try again? 💪');
     lg('🤖 AI WINS!','err');
     speak('I win this time! Better luck next time!');
-    setBig('▶ Play Again','orange',true); setHelpers(false);
+    setBig('▶ Play Again','orange',true); setHelpers(false,false); showSkip(false);
   }
 }
 
-// ── SPEECH CHECK ──────────────────────────────────────────────────────────────
 function hasSR(){
-  if('webkitSpeechRecognition' in window||'SpeechRecognition' in window)return true;
-  alert('Speech recognition is not supported.\nPlease open this page in Google Chrome.');
+  if('webkitSpeechRecognition' in window||'SpeechRecognition' in window) return true;
+  alert('Please open this page in Google Chrome.');
   return false;
 }
 </script>
